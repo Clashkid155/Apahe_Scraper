@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"log"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -12,6 +13,7 @@ import (
 type AnimeDetails struct {
 	Url        string `json:"url"`
 	Name       string `json:"name"`
+	Episode    string `json:"episode"`
 	LinkExpire string `json:"link_expires"`
 }
 
@@ -39,4 +41,16 @@ func (detail *AnimeDetails) ToJson() []byte {
 		log.Fatalf("can't marshal %v", err)
 	}
 	return buffer.Bytes()
+}
+
+func (detail *AnimeDetails) SaveToFile() {
+	file, err := os.OpenFile(strings.ToValidUTF8(detail.Name,
+		"_"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		log.Fatalf("can't open file %s %v", detail.Name, err)
+	}
+	_, err = file.Write(detail.ToJson())
+	if err != nil {
+		log.Fatalf("can't write details to file %v", err)
+	}
 }
