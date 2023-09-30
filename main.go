@@ -73,7 +73,7 @@ func playWrigh() {
 			log.Fatalf("could not stop Playwright: %v", err)
 		}
 	}(pw)
-	/// This seems to fix a timeout issue
+
 	gotoOptions := playwright.PageGotoOptions{Timeout: playwright.Float(15000)}
 
 	if _, err = page.Goto("https://animepahe.ru/", gotoOptions); err != nil {
@@ -104,6 +104,13 @@ func playWrigh() {
 	if err != nil {
 		log.Fatalf("couldn't click first episode %v", err)
 	}
+	textContents, err := page.Locator(".theatre-info > h1:nth-child(2)").TextContent()
+	if err != nil {
+		log.Fatalf("%v", err)
+	}
+	animeDetail := &model.AnimeDetails{}
+	animeDetail.Name, animeDetail.Episode = GetNameAndEpisode(textContents)
+	fmt.Println("Anime:", animeDetail.Name, "Episode:", animeDetail.Episode)
 
 	/// Click the dropdown button then click the last item in the dropdown
 	err = page.Locator("div.col-12:nth-child(4) > div:nth-child(1)").Click()
@@ -140,28 +147,17 @@ func playWrigh() {
 
 		if strings.Contains(linkName, "1080p") {
 			fmt.Println("Entered scope")
-			getDownloadLink("name", links)
+			getDownloadLink(animeDetail, links)
 
 		}
 	}
 
-	//  https://pahe.win/WjUUW
-	/*	err = page.Pause()
-		if err != nil {
-			log.Fatalf("couldn't pause browser, %v", err)
-		}*/
-	/*	if err = browser.Close(); err != nil {
-			log.Fatalf("could not close browser: %v", err)
-		}
-		if err = pw.Stop(); err != nil {
-			log.Fatalf("could not stop Playwright: %v", err)
-		}*/
-	/*defer browser.Close()
-	defer pw.Stop()*/
 }
 
-func getDownloadLink(name, links string) {
-	newContext, err := browser.NewContext(playwright.BrowserNewContextOptions{UserAgent: playwright.String("Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/117.0")})
+func getDownloadLink(details *model.AnimeDetails, links string) {
+	newContext, err := browser.NewContext(
+		playwright.BrowserNewContextOptions{
+			UserAgent: playwright.String("Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/117.0")})
 	if err != nil {
 		log.Fatalf("can't create new browser context %v", err)
 	}
@@ -176,23 +172,24 @@ func getDownloadLink(name, links string) {
 	if err != nil {
 		log.Fatalf("can't create new page %v", err)
 	}
-	//links := "https://pahe.win/BAkFV"
+
 	fmt.Println("New page", links)
 	if _, err = newPage.Goto(links, playwright.PageGotoOptions{
 		Timeout: playwright.Float(10000)}); err != nil {
 		log.Fatalf("can't goto page %v", err)
 	}
 	waitPage := newPage.GetByText("Continue")
-	getAttribute, err := waitPage.GetAttribute("href")
+	nextPageLink, err := waitPage.GetAttribute("href")
 	if err != nil {
 		log.Fatalf("can't get attribute %v", err)
 	}
 	fmt.Println("About to move")
-	_, err = newPage.Goto(getAttribute)
+	_, err = newPage.Goto(nextPageLink)
 	if err != nil {
 		log.Fatalf("can't navigate to page %v", err)
 	}
 	fmt.Println("Moved")
+	/// Click anywhere to trigger ads
 	err = newPage.Mouse().Click(100, 100) //Locator(".").Click()
 	if err != nil {
 		log.Fatalf("can't click anywhere %v", err)
@@ -213,138 +210,8 @@ func getDownloadLink(name, links string) {
 	if err != nil {
 		log.Fatalf("can't cancel downlaod %v", err)
 	}
-	details := &model.AnimeDetails{
-		Url:  download.URL(),
-		Name: name,
-	}
+	details.Url = download.URL()
 	details.SetExpireTime()
 	fmt.Println(string(details.ToJson()))
 	fmt.Println("Reached here too", *details)
 }
-
-/*func loadNewBrowser() {
-
-//fmt.Println("Went to ", links)
-
-/*	err = newPage.WaitForLoadState(playwright.PageWaitForLoadStateOptions{
-		State: playwright.LoadStateLoad, Timeout: playwright.Float(6000)})
-
-	if err != nil {
-		log.Fatalf("can't wait %v", err)
-	}*/
-/*err = newPage.GetByText("Continue").WaitFor(playwright.LocatorWaitForOptions{State: playwright.WaitForSelectorStateVisible})
-if err != nil {
-	log.Fatalf("can't wait for element %v", err)
-}
-err = newPage.GetByText("Continue").Click() //.Locator(".btn btn-primary btn-block redirect").Click()
-if err != nil {
-	log.Fatalf("can't click button %v", err)
-}
-newPage.OnPopup(func(tab playwright.Page) {
-	fmt.Println("Popup url: ", tab.URL())
-	err = tab.Close()
-	if err != nil {
-		log.Fatalf("can't close new tab %v", err)
-	}
-})*/
-/*
-	err = newPage.WaitForLoadState(playwright.PageWaitForLoadStateOptions{
-		State: playwright.LoadStateLoad, Timeout: playwright.Float(6000)})
-
-	if err != nil {
-		log.Fatalf("can't wait %v", err)
-	}*/
-//fmt.Println("Waiting for element ", newPage)
-/*	err = newPage.Locator(".body > div.container.my-5 > div > div > div.col-md-8 > div > div:nth-child(1) > a").WaitFor(
-		playwright.LocatorWaitForOptions{State: playwright.WaitForSelectorStateVisible})
-	if err != nil {
-		log.Fatalf("couldn't wait %v", err)
-	}*/
-//fmt.Println("Seems it passed")
-//downloadAds := newPage.GetByText("Continue") //newPage.Locator(".body > div.container.my-5 > div > div > div.col-md-8 > div > div:nth-child(1) > a") //.Click(playwright.LocatorClickOptions{Delay: playwright.Float(6000)})
-/*if err != nil {
-	log.Fatalf("can't click element %v", err)
-}*/
-//getAttribute, err := downloadAds.GetAttribute("href")
-//if err != nil {
-//	log.Fatalf("can't get attribute %v", err)
-//}
-//fmt.Println("About to move")
-//_, err = newPage.Goto(getAttribute)
-//if err != nil {
-//	log.Fatalf("can't navigate to page %v", err)
-//}
-//fmt.Println("Moved")
-//err = newPage.Mouse().Click(100, 100) //Locator(".").Click()
-//if err != nil {
-//	log.Fatalf("can't click anywhere %v", err)
-//}
-/*	err = newPage.GetByText("Download").Click() //newPage.Locator(".button").Click()
-	if err != nil {
-		log.Fatalf("can't click download button %v", err)
-	}*/
-
-//fmt.Println("Reached here", newPage.Context().Pages())
-/*err = newPage.WaitForLoadState()
-if err != nil {
-	log.Fatalf("can't wait %v", err)
-}*/
-/*	newPage.OnPopup(func(tab playwright.Page) {
-	fmt.Println("Popup url (new): ", tab.URL())
-	err = tab.Close()
-	if err != nil {
-		log.Fatalf("can't close new tab %v", err)
-	}
-	err = newPage.Locator(".button").Click()
-	if err != nil {
-		log.Fatalf("can't click download button %v", err)
-	}
-})*/
-
-/*	for len(newPage.Context().Pages()) != 1 {
-	newPage.OnPopup(func(tab playwright.Page) {
-		fmt.Println("Popup url: ", tab.URL())
-		err = tab.Close()
-		if err != nil {
-			log.Fatalf("can't close new tab %v", err)
-		}
-	})
-	err = newPage.Locator(".button").Click()
-	if err != nil {
-		log.Fatalf("can't click download button %v", err)
-	}
-}*/
-
-//download, err := newPage.ExpectDownload(func() error {
-//	fmt.Println("Yes expected exe")
-//	err = newPage.GetByText("Download").Click()
-//	if err != nil {
-//		log.Fatalf("can't click download button %v", err)
-//	}
-//	return err
-//})
-//if err != nil {
-//	log.Fatalf("can't see any download %v", err)
-//}
-//
-//err = download.Cancel()
-//if err != nil {
-//	log.Fatalf("can't cancel downlaod %v", err)
-//}
-
-/*newPage.OnDownload(func(download playwright.Download) {
-	downloadUrls = append(downloadUrls, download.URL())
-	err = download.Cancel()
-	if err != nil {
-		log.Fatalf("can't cancel download %v", err)
-	}
-})*/
-//details := &AnimeDetails{
-//	Url:  download.URL(),
-//	Name: "",
-//}
-//details.setExpireTime()
-//fmt.Println(string(details.toJson()))
-//fmt.Println("Reached here too", *details)
-//	newPage.Pause()
-//}
