@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"log"
 	"os"
+	"paheScraper/config"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -44,8 +46,9 @@ func (detail *AnimeDetails) ToJson() []byte {
 }
 
 func (detail *AnimeDetails) SaveToFile() {
-	file, err := os.OpenFile(strings.ToValidUTF8(detail.Name,
-		"_"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	filePath := filepath.Join(config.UserDocument, strings.ToValidUTF8(detail.Name,
+		"_")+".json")
+	file, err := os.OpenFile(filePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 	if err != nil {
 		log.Fatalf("can't open file %s %v", detail.Name, err)
 	}

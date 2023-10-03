@@ -3,6 +3,7 @@ module paheScraper
 go 1.21
 
 require (
+	github.com/adrg/xdg v0.4.0 // indirect
 	github.com/chromedp/cdproto v0.0.0-20230914224007-a15a36ccbc2e // indirect
 	github.com/chromedp/chromedp v0.9.2 // indirect
 	github.com/chromedp/sysutil v1.0.0 // indirect
