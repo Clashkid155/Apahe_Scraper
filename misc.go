@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"os"
 	"strings"
 )
@@ -22,4 +23,12 @@ func GetNameAndEpisode(data string) (string, string) {
 	episode := strings.TrimSpace(split[1])
 
 	return name, episode
+}
+
+func GetFlags() (*string, *string) {
+	quality := flag.String("q", "1080p", "Select anime quality.")
+	name := flag.String("n", "", "Anime name")
+	flag.Parse()
+
+	return name, quality
 }
