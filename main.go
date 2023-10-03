@@ -5,35 +5,46 @@ import (
 	"github.com/playwright-community/playwright-go"
 	"log"
 	"os"
+	"paheScraper/config"
 	"paheScraper/model"
 	"strings"
+	"time"
 )
 
 var (
 	browser playwright.Browser
 	pw      *playwright.Playwright
-)
-
-const (
-	firstRun = ".first_run"
+	name    *string
+	quality *string
 )
 
 func init() {
+	log.SetFlags(log.Lshortfile)
 	var err error
-	if !IsExists(firstRun) {
+	name, quality = GetFlags()
+	if *name == "" {
+		fmt.Println("No anime name given.")
+		os.Exit(1)
+	}
+
+	if !IsExists(config.FirstRun) {
+		err = os.Mkdir(config.UserDocument, os.ModePerm)
+		if err != nil {
+			log.Fatalf("can't create directory. err: %v", err)
+		}
 		runOption := &playwright.RunOptions{
 			DriverDirectory: "",
 			//SkipInstallBrowsers: true,
-			//Browsers: []string{"chrome"},
-			Verbose: false,
+			Browsers: []string{"chrome"},
+			Verbose:  false,
 		}
 		err = playwright.Install(runOption)
 		if err != nil {
-			log.Fatalf("could not install playwright dependencies: %v", err)
+			log.Printf("can't install browser %v", err)
 		}
-		_, err = os.Create(firstRun)
+		_, err = os.Create(config.FirstRun)
 		if err != nil {
-			log.Fatalf("can't create %s %v", firstRun, err)
+			log.Fatalf("can't create %s\nErr: %v", config.FirstRun, err)
 		}
 	}
 	pw, err = playwright.Run()
@@ -42,7 +53,6 @@ func init() {
 	}
 	option := playwright.BrowserTypeLaunchOptions{
 		Headless: playwright.Bool(false),
-		SlowMo:   playwright.Float(0),
 		//Args:     []string{"--start-maximized"},
 	}
 	browser, err = pw.Chromium.Launch(option)
@@ -64,7 +74,7 @@ func playWrigh() {
 	defer func(browser playwright.Browser) {
 		err = browser.Close()
 		if err != nil {
-			log.Fatalf("could not close browser: %v", err)
+			log.Printf("could not close browser: %v", err)
 		}
 	}(browser)
 	defer func(pw *playwright.Playwright) {
@@ -81,14 +91,15 @@ func playWrigh() {
 	}
 
 	/// Select search box and type in anime name
-	search := page.Locator(".input-search")
+	search := page.GetByPlaceholder("Search") //Locator(".input-search")
+
 	err = search.Click(playwright.LocatorClickOptions{
 		Delay: playwright.Float(1000),
 	})
 	if err != nil {
 		log.Fatalf("couldn't click search bar %v", err)
 	}
-	err = search.Type("Dark Gathering", playwright.LocatorTypeOptions{
+	err = search.Type(*name, playwright.LocatorTypeOptions{
 		Delay: playwright.Float(200),
 	})
 	if err != nil {
@@ -98,58 +109,99 @@ func playWrigh() {
 	if err != nil {
 		log.Fatalf("can't click search result %v", err)
 	}
+	err = page.WaitForLoadState(playwright.PageWaitForLoadStateOptions{
+		State: playwright.LoadStateNetworkidle, Timeout: playwright.Float(10000)})
+	if err != nil {
+		log.Println(err)
+	}
+
+	html, err := page.Locator(".episode-count").InnerHTML()
+	if err != nil {
+		return
+	}
+	//GetByRole("listitem").Filter(playwright.LocatorFilterOptions{Has: }).Count()
+	count, err := page.Locator(".episode-wrap").Count()
+	if err != nil {
+		log.Fatalf("%v", err)
+	}
+	fmt.Println("episodes:", count, html)
 
 	/// Click the first episode in the list
 	err = page.Locator("div.episode-wrap:nth-child(1) > div:nth-child(1) > div:nth-child(1)").Click()
 	if err != nil {
 		log.Fatalf("couldn't click first episode %v", err)
 	}
-	textContents, err := page.Locator(".theatre-info > h1:nth-child(2)").TextContent()
-	if err != nil {
-		log.Fatalf("%v", err)
+	for i := count; i > 0; i-- {
+
+		textContents, err := page.Locator(".theatre-info > h1:nth-child(2)").TextContent()
+		if err != nil {
+			log.Fatalf("%v", err)
+		}
+		animeDetail := &model.AnimeDetails{}
+		animeDetail.Name, animeDetail.Episode = GetNameAndEpisode(textContents)
+		fmt.Println("Anime:", animeDetail.Name, "Episode:", animeDetail.Episode, i)
+		//episodes := strconv.Atoi()
+
+		/// Click the dropdown button then click the last item in the dropdown
+		err = page.Locator("div.col-12:nth-child(4) > div:nth-child(1)").Click()
+		if err != nil {
+			log.Fatalf("couldn't click first episode %v", err)
+		}
+
+		text := page.Locator("#pickDownload") //("SubsPlease")
+
+		/// This enables us to get the contents of the dropdown
+		/// Also try to get by attribute
+		listLink, err := text.Locator(".dropdown-item").All() //text.All()
+
+		fmt.Print("\n---------\n")
+
+	list:
+		for _, content := range listLink {
+			links, err := content.GetAttribute("href")
+			if err != nil {
+				log.Fatalf("no such attribute %v", err)
+			}
+			linkName, err := content.InnerText()
+			if err != nil {
+				log.Fatalf("no text %v", err)
+			}
+			//fmt.Printf("%d. %s %s\n", i+1, linkName, links)
+
+			if strings.Contains(linkName, *quality) {
+				//fmt.Println("Entered scope")
+				getDownloadLink(animeDetail, links)
+				break list
+			}
+		}
+		pages := page.Context().Pages()
+		//fmt.Println(pages, len(pages))
+		/// TODO: Track state of scraping, save to file after 10 episodes have been scraped
+		/// TODO: Replace log.Fatalf calls
+		for index, p := range pages {
+			if index == 0 {
+				continue
+			}
+			err = p.Close()
+			if err != nil {
+				log.Fatalf("can't close tab. err: %v", err)
+			}
+		}
+		nextEpisode, err := page.GetByTitle("Play Next Episode").GetAttribute("href")
+		if err != nil {
+			log.Fatalf("can't get link. err: %v", err)
+		}
+		_, err = page.Goto("https://animepahe.ru"+nextEpisode, gotoOptions)
+		if err != nil {
+			log.Fatalf("can't goto page %v", err)
+		}
+		if i%10 == 0 && i != count {
+			time.Sleep(time.Minute * 3)
+		}
 	}
-	animeDetail := &model.AnimeDetails{}
-	animeDetail.Name, animeDetail.Episode = GetNameAndEpisode(textContents)
-	fmt.Println("Anime:", animeDetail.Name, "Episode:", animeDetail.Episode)
-
-	/// Click the dropdown button then click the last item in the dropdown
-	err = page.Locator("div.col-12:nth-child(4) > div:nth-child(1)").Click()
+	err = page.Close()
 	if err != nil {
-		log.Fatalf("couldn't click first episode %v", err)
-	}
-	/*/// Close popup tab
-	page.OnPopup(func(tab playwright.Page) {
-		//fmt.Println("Page url: ", tab.URL())
-		err = tab.Close()
-		if err != nil {
-			log.Fatalf("can't close new tab %v", err)
-		}
-	})*/
-
-	text := page.Locator("#pickDownload") //("SubsPlease")
-
-	/// This enables us to get the contents of the dropdown
-	/// Also try to get by attribute
-	listLink, err := text.Locator(".dropdown-item").All() //text.All()
-
-	fmt.Print("\n---------\n")
-
-	for i, content := range listLink {
-		links, err := content.GetAttribute("href")
-		if err != nil {
-			log.Fatalf("no such attribute %v", err)
-		}
-		linkName, err := content.InnerText()
-		if err != nil {
-			log.Fatalf("no text %v", err)
-		}
-		fmt.Printf("%d. %s %s\n", i+1, linkName, links)
-
-		if strings.Contains(linkName, "1080p") {
-			fmt.Println("Entered scope")
-			getDownloadLink(animeDetail, links)
-
-		}
+		log.Println("can't close tab. err:", err)
 	}
 
 }
@@ -165,7 +217,7 @@ func getDownloadLink(details *model.AnimeDetails, links string) {
 	defer func(newContext playwright.BrowserContext) {
 		err = newContext.Close()
 		if err != nil {
-			log.Fatalf("could not close browser: %v", err)
+			log.Fatalf("could not close browser context: %v", err)
 		}
 	}(newContext)
 	newPage, err := newContext.NewPage()
@@ -183,20 +235,19 @@ func getDownloadLink(details *model.AnimeDetails, links string) {
 	if err != nil {
 		log.Fatalf("can't get attribute %v", err)
 	}
-	fmt.Println("About to move")
+	//fmt.Println("About to move")
 	_, err = newPage.Goto(nextPageLink)
 	if err != nil {
 		log.Fatalf("can't navigate to page %v", err)
 	}
 	fmt.Println("Moved")
 	/// Click anywhere to trigger ads
-	err = newPage.Mouse().Click(100, 100) //Locator(".").Click()
+	err = newPage.Mouse().Click(100, 100)
 	if err != nil {
 		log.Fatalf("can't click anywhere %v", err)
 	}
-	fmt.Println("Reached here", newPage.Context().Pages())
+
 	download, err := newPage.ExpectDownload(func() error {
-		fmt.Println("Yes expected exe")
 		err = newPage.GetByText("Download").Click()
 		if err != nil {
 			log.Fatalf("can't click download button %v", err)
@@ -212,6 +263,7 @@ func getDownloadLink(details *model.AnimeDetails, links string) {
 	}
 	details.Url = download.URL()
 	details.SetExpireTime()
-	fmt.Println(string(details.ToJson()))
-	fmt.Println("Reached here too", *details)
+	//fmt.Println(string(details.ToJson()))
+	//fmt.Println("Reached here too", *details)
+	details.SaveToFile()
 }
