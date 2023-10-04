@@ -30,7 +30,7 @@ func init() {
 	if !IsExists(config.FirstRun) {
 		err = os.Mkdir(config.UserDocument, os.ModePerm)
 		if err != nil {
-			log.Fatalf("can't create directory. err: %v", err)
+			log.Printf("can't create directory. err: %v", err)
 		}
 		runOption := &playwright.RunOptions{
 			DriverDirectory: "",
@@ -44,12 +44,12 @@ func init() {
 		}
 		_, err = os.Create(config.FirstRun)
 		if err != nil {
-			log.Fatalf("can't create %s\nErr: %v", config.FirstRun, err)
+			log.Printf("can't create %s\nErr: %v", config.FirstRun, err)
 		}
 	}
 	pw, err = playwright.Run()
 	if err != nil {
-		log.Fatalf("could not start playwright: %v", err)
+		log.Printf("could not start playwright: %v", err)
 	}
 	option := playwright.BrowserTypeLaunchOptions{
 		Headless: playwright.Bool(false),
@@ -57,7 +57,7 @@ func init() {
 	}
 	browser, err = pw.Chromium.Launch(option)
 	if err != nil {
-		log.Fatalf("could not launch browser: %v", err)
+		log.Printf("could not launch browser: %v", err)
 	}
 }
 
@@ -69,7 +69,7 @@ func main() {
 func playWrigh() {
 	page, err := browser.NewPage()
 	if err != nil {
-		log.Fatalf("could not create page: %v", err)
+		log.Printf("could not create page: %v", err)
 	}
 	defer func(browser playwright.Browser) {
 		err = browser.Close()
@@ -97,17 +97,17 @@ func playWrigh() {
 		Delay: playwright.Float(1000),
 	})
 	if err != nil {
-		log.Fatalf("couldn't click search bar %v", err)
+		log.Printf("couldn't click search bar %v", err)
 	}
 	err = search.Type(*name, playwright.LocatorTypeOptions{
 		Delay: playwright.Float(200),
 	})
 	if err != nil {
-		log.Fatalf("couldn't fill text field %v", err)
+		log.Printf("couldn't fill text field %v", err)
 	}
 	err = page.Locator(".search-results > li:nth-child(1)").Click()
 	if err != nil {
-		log.Fatalf("can't click search result %v", err)
+		log.Printf("can't click search result %v", err)
 	}
 	err = page.WaitForLoadState(playwright.PageWaitForLoadStateOptions{
 		State: playwright.LoadStateNetworkidle, Timeout: playwright.Float(10000)})
@@ -122,20 +122,20 @@ func playWrigh() {
 	//GetByRole("listitem").Filter(playwright.LocatorFilterOptions{Has: }).Count()
 	count, err := page.Locator(".episode-wrap").Count()
 	if err != nil {
-		log.Fatalf("%v", err)
+		log.Printf("%v", err)
 	}
 	fmt.Println("episodes:", count, html)
 
 	/// Click the first episode in the list
 	err = page.Locator("div.episode-wrap:nth-child(1) > div:nth-child(1) > div:nth-child(1)").Click()
 	if err != nil {
-		log.Fatalf("couldn't click first episode %v", err)
+		log.Printf("couldn't click first episode %v", err)
 	}
 	for i := count; i > 0; i-- {
 
 		textContents, err := page.Locator(".theatre-info > h1:nth-child(2)").TextContent()
 		if err != nil {
-			log.Fatalf("%v", err)
+			log.Printf("%v", err)
 		}
 		animeDetail := &model.AnimeDetails{}
 		animeDetail.Name, animeDetail.Episode = GetNameAndEpisode(textContents)
@@ -145,7 +145,7 @@ func playWrigh() {
 		/// Click the dropdown button then click the last item in the dropdown
 		err = page.Locator("div.col-12:nth-child(4) > div:nth-child(1)").Click()
 		if err != nil {
-			log.Fatalf("couldn't click first episode %v", err)
+			log.Printf("couldn't click first episode %v", err)
 		}
 
 		text := page.Locator("#pickDownload") //("SubsPlease")
@@ -160,11 +160,11 @@ func playWrigh() {
 		for _, content := range listLink {
 			links, err := content.GetAttribute("href")
 			if err != nil {
-				log.Fatalf("no such attribute %v", err)
+				log.Printf("no such attribute %v", err)
 			}
 			linkName, err := content.InnerText()
 			if err != nil {
-				log.Fatalf("no text %v", err)
+				log.Printf("no text %v", err)
 			}
 			//fmt.Printf("%d. %s %s\n", i+1, linkName, links)
 
@@ -184,16 +184,16 @@ func playWrigh() {
 			}
 			err = p.Close()
 			if err != nil {
-				log.Fatalf("can't close tab. err: %v", err)
+				log.Printf("can't close tab. err: %v", err)
 			}
 		}
 		nextEpisode, err := page.GetByTitle("Play Next Episode").GetAttribute("href")
 		if err != nil {
-			log.Fatalf("can't get link. err: %v", err)
+			log.Printf("can't get link. err: %v", err)
 		}
 		_, err = page.Goto("https://animepahe.ru"+nextEpisode, gotoOptions)
 		if err != nil {
-			log.Fatalf("can't goto page %v", err)
+			log.Printf("can't goto page %v", err)
 		}
 		if i%10 == 0 && i != count {
 			time.Sleep(time.Minute * 3)
@@ -211,55 +211,55 @@ func getDownloadLink(details *model.AnimeDetails, links string) {
 		playwright.BrowserNewContextOptions{
 			UserAgent: playwright.String("Mozilla/5.0 (X11; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/117.0")})
 	if err != nil {
-		log.Fatalf("can't create new browser context %v", err)
+		log.Printf("can't create new browser context %v", err)
 	}
 
 	defer func(newContext playwright.BrowserContext) {
 		err = newContext.Close()
 		if err != nil {
-			log.Fatalf("could not close browser context: %v", err)
+			log.Printf("could not close browser context: %v", err)
 		}
 	}(newContext)
 	newPage, err := newContext.NewPage()
 	if err != nil {
-		log.Fatalf("can't create new page %v", err)
+		log.Printf("can't create new page %v", err)
 	}
 
 	fmt.Println("New page", links)
 	if _, err = newPage.Goto(links, playwright.PageGotoOptions{
 		Timeout: playwright.Float(10000)}); err != nil {
-		log.Fatalf("can't goto page %v", err)
+		log.Printf("can't goto page %v", err)
 	}
 	waitPage := newPage.GetByText("Continue")
 	nextPageLink, err := waitPage.GetAttribute("href")
 	if err != nil {
-		log.Fatalf("can't get attribute %v", err)
+		log.Printf("can't get attribute %v", err)
 	}
 	//fmt.Println("About to move")
 	_, err = newPage.Goto(nextPageLink)
 	if err != nil {
-		log.Fatalf("can't navigate to page %v", err)
+		log.Printf("can't navigate to page %v", err)
 	}
 	fmt.Println("Moved")
 	/// Click anywhere to trigger ads
 	err = newPage.Mouse().Click(100, 100)
 	if err != nil {
-		log.Fatalf("can't click anywhere %v", err)
+		log.Printf("can't click anywhere %v", err)
 	}
 
 	download, err := newPage.ExpectDownload(func() error {
 		err = newPage.GetByText("Download").Click()
 		if err != nil {
-			log.Fatalf("can't click download button %v", err)
+			log.Printf("can't click download button %v", err)
 		}
 		return err
 	})
 	if err != nil {
-		log.Fatalf("can't see any download %v", err)
+		log.Printf("can't see any download %v", err)
 	}
 	err = download.Cancel()
 	if err != nil {
-		log.Fatalf("can't cancel downlaod %v", err)
+		log.Printf("can't cancel downlaod %v", err)
 	}
 	details.Url = download.URL()
 	details.SetExpireTime()
