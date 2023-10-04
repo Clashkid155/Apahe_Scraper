@@ -7,6 +7,7 @@ import (
 	"os"
 	"paheScraper/config"
 	"paheScraper/model"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -113,6 +114,15 @@ func playWrigh() {
 		State: playwright.LoadStateNetworkidle, Timeout: playwright.Float(10000)})
 	if err != nil {
 		log.Println(err)
+	}*/
+
+	pattern := `Episodes \((\d*[1-9]\d*)\)`
+
+	re := regexp.MustCompile(pattern)
+	assertions := playwright.NewPlaywrightAssertions(10000)                    //PlaywrightAssertions()
+	err = assertions.Locator(page.Locator(".episode-count")).ToContainText(re) //Not().ToHaveCount(2)
+	if err != nil {
+		log.Printf("assertions error. err: %v", err)
 	}
 
 	html, err := page.Locator(".episode-count").InnerHTML()
