@@ -72,19 +72,19 @@ func playWrigh() {
 	if err != nil {
 		log.Printf("could not create page: %v", err)
 	}
+
+	defer func(pw *playwright.Playwright) {
+		err = pw.Stop()
+		if err != nil {
+			log.Printf("could not stop Playwright: %v", err)
+		}
+	}(pw)
 	defer func(browser playwright.Browser) {
 		err = browser.Close()
 		if err != nil {
 			log.Printf("could not close browser: %v", err)
 		}
 	}(browser)
-	defer func(pw *playwright.Playwright) {
-		err := pw.Stop()
-		if err != nil {
-			log.Fatalf("could not stop Playwright: %v", err)
-		}
-	}(pw)
-
 	gotoOptions := playwright.PageGotoOptions{Timeout: playwright.Float(15000)}
 
 	if _, err = page.Goto("https://animepahe.ru/", gotoOptions); err != nil {
@@ -110,21 +110,14 @@ func playWrigh() {
 	if err != nil {
 		log.Printf("can't click search result %v", err)
 	}
-	err = page.WaitForLoadState(playwright.PageWaitForLoadStateOptions{
-		State: playwright.LoadStateNetworkidle, Timeout: playwright.Float(10000)})
-	if err != nil {
-		log.Println(err)
-	}*/
 
 	pattern := `Episodes \((\d*[1-9]\d*)\)`
-
 	re := regexp.MustCompile(pattern)
 	assertions := playwright.NewPlaywrightAssertions(10000)                    //PlaywrightAssertions()
 	err = assertions.Locator(page.Locator(".episode-count")).ToContainText(re) //Not().ToHaveCount(2)
 	if err != nil {
 		log.Printf("assertions error. err: %v", err)
 	}
-
 	html, err := page.Locator(".episode-count").InnerHTML()
 	if err != nil {
 		return
@@ -135,7 +128,16 @@ func playWrigh() {
 		log.Printf("%v", err)
 	}
 	fmt.Println("episodes:", count, html)
-
+	//panic("Exiting")
+	page.OnPopup(func(tab playwright.Page) {
+		fmt.Println("Popup url: ", tab.URL())
+		go func() {
+			err = tab.Close()
+			if err != nil {
+				log.Fatalf("can't close new tab %v", err)
+			}
+		}()
+	})
 	/// Click the first episode in the list
 	err = page.Locator("div.episode-wrap:nth-child(1) > div:nth-child(1) > div:nth-child(1)").Click()
 	if err != nil {
@@ -150,7 +152,6 @@ func playWrigh() {
 		animeDetail := &model.AnimeDetails{}
 		animeDetail.Name, animeDetail.Episode = GetNameAndEpisode(textContents)
 		fmt.Println("Anime:", animeDetail.Name, "Episode:", animeDetail.Episode, i)
-		//episodes := strconv.Atoi()
 
 		/// Click the dropdown button then click the last item in the dropdown
 		err = page.Locator("div.col-12:nth-child(4) > div:nth-child(1)").Click()
@@ -176,7 +177,6 @@ func playWrigh() {
 			if err != nil {
 				log.Printf("no text %v", err)
 			}
-			//fmt.Printf("%d. %s %s\n", i+1, linkName, links)
 
 			if strings.Contains(linkName, *quality) {
 				//fmt.Println("Entered scope")
@@ -184,19 +184,11 @@ func playWrigh() {
 				break list
 			}
 		}
-		pages := page.Context().Pages()
+		//pages := page.Context().Pages()
 		//fmt.Println(pages, len(pages))
 		/// TODO: Track state of scraping, save to file after 10 episodes have been scraped
 		/// TODO: Replace log.Fatalf calls
-		for index, p := range pages {
-			if index == 0 {
-				continue
-			}
-			err = p.Close()
-			if err != nil {
-				log.Printf("can't close tab. err: %v", err)
-			}
-		}
+
 		nextEpisode, err := page.GetByTitle("Play Next Episode").GetAttribute("href")
 		if err != nil {
 			log.Printf("can't get link. err: %v", err)
