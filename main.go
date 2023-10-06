@@ -122,7 +122,7 @@ func playWrigh() {
 	if err != nil {
 		return
 	}
-	//GetByRole("listitem").Filter(playwright.LocatorFilterOptions{Has: }).Count()
+
 	count, err := page.Locator(".episode-wrap").Count()
 	if err != nil {
 		log.Printf("%v", err)
@@ -130,7 +130,7 @@ func playWrigh() {
 	fmt.Println("episodes:", count, html)
 	//panic("Exiting")
 	page.OnPopup(func(tab playwright.Page) {
-		fmt.Println("Popup url: ", tab.URL())
+		//fmt.Println("Popup url: ", tab.URL())
 		go func() {
 			err = tab.Close()
 			if err != nil {

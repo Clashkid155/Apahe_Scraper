@@ -18,7 +18,7 @@ func IsExists(file string) bool {
 func GetNameAndEpisode(data string) (string, string) {
 	// Watch Dark Gathering - 12 Online
 	strip := strings.TrimSuffix(strings.TrimPrefix(data, "Watch "), " Online")
-	split := strings.Split(strip, "-")
+	split := strings.Split(strip, "- ")
 	name := strings.TrimSpace(split[0])
 	episode := strings.TrimSpace(split[1])
 

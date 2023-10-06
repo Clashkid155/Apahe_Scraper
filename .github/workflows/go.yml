@@ -35,6 +35,6 @@ jobs:
         repo_token: "${{ secrets.GITHUB_TOKEN }}"
         prerelease: false
         automatic_release_tag: "latest"
-        title: "Testing"
+        #title: "Testing"
         files: |
           bin/*

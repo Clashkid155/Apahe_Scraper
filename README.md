@@ -37,4 +37,4 @@ Use `apahe -h` to see the help.
 ### TODO
 * [ ] Implement a range function.
 * [ ] Proper method of saving anime details.
-* [ ] ....
+* [ ] Proper logging
