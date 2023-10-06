@@ -18,9 +18,8 @@ go build -o apahe
 ./apahe -h
 ```
 ### Or 
-Download the already compiled one for your os. Check the release.
+Download the already compiled one for your os, check the release.
 
-___
 
 ## Usage
 
