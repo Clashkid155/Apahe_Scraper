@@ -30,7 +30,7 @@ jobs:
       run: env GOOS=windows GOARCH=amd64 go build -o bin/apahe.exe
     
     - name: Create release
-    - uses: "marvinpinto/action-automatic-releases@latest"
+      uses: "marvinpinto/action-automatic-releases@latest"
       with:
         repo_token: "${{ secrets.GITHUB_TOKEN }}"
         prerelease: false
