@@ -27,28 +27,28 @@ func init() {
 		fmt.Println("No anime name given.")
 		os.Exit(1)
 	}
-
+	runOption := &playwright.RunOptions{
+		DriverDirectory: "",
+		//SkipInstallBrowsers: true,
+		Browsers: []string{"firefox"},
+		Verbose:  true,
+	}
 	if !IsExists(config.FirstRun) {
 		err = os.Mkdir(config.UserDocument, os.ModePerm)
 		if err != nil {
 			log.Printf("can't create directory. err: %v", err)
 		}
-		runOption := &playwright.RunOptions{
-			DriverDirectory: "",
-			//SkipInstallBrowsers: true,
-			Browsers: []string{"chrome"},
-			Verbose:  false,
-		}
+
 		err = playwright.Install(runOption)
 		if err != nil {
-			log.Printf("can't install browser %v", err)
+			log.Panicf("can't install browser %v", err)
 		}
 		_, err = os.Create(config.FirstRun)
 		if err != nil {
 			log.Printf("can't create %s\nErr: %v", config.FirstRun, err)
 		}
 	}
-	pw, err = playwright.Run()
+	pw, err = playwright.Run(runOption)
 	if err != nil {
 		log.Printf("could not start playwright: %v", err)
 	}
@@ -56,7 +56,7 @@ func init() {
 		Headless: playwright.Bool(false),
 		//Args:     []string{"--start-maximized"},
 	}
-	browser, err = pw.Chromium.Launch(option)
+	browser, err = pw.Firefox.Launch(option)
 	if err != nil {
 		log.Printf("could not launch browser: %v", err)
 	}
@@ -151,7 +151,7 @@ func playWrigh() {
 		}
 		animeDetail := &model.AnimeDetails{}
 		animeDetail.Name, animeDetail.Episode = GetNameAndEpisode(textContents)
-		fmt.Println("Anime:", animeDetail.Name, "Episode:", animeDetail.Episode, i)
+		fmt.Println("Anime:", animeDetail.Name, "Episode:", animeDetail.Episode)
 
 		/// Click the dropdown button then click the last item in the dropdown
 		err = page.Locator("div.col-12:nth-child(4) > div:nth-child(1)").Click()
@@ -188,6 +188,7 @@ func playWrigh() {
 		//fmt.Println(pages, len(pages))
 		/// TODO: Track state of scraping, save to file after 10 episodes have been scraped
 		/// TODO: Replace log.Fatalf calls
+		/// TODO: Checkout why Onegai☆Twins (anime name), it doesn't work
 
 		nextEpisode, err := page.GetByTitle("Play Next Episode").GetAttribute("href")
 		if err != nil {
@@ -227,7 +228,7 @@ func getDownloadLink(details *model.AnimeDetails, links string) {
 		log.Printf("can't create new page %v", err)
 	}
 
-	fmt.Println("New page", links)
+	//fmt.Println("New page", links)
 	if _, err = newPage.Goto(links, playwright.PageGotoOptions{
 		Timeout: playwright.Float(10000)}); err != nil {
 		log.Printf("can't goto page %v", err)
